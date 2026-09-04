@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Duel Arena</title>
+
+<style>
+
+body{
+margin:0;
+background:#0c1016;
+color:white;
+font-family:Arial,sans-serif;
+text-align:center;
+}
+
+.page{
+display:none;
+padding:30px;
+}
+
+.page.active{
+display:block;
+}
+
+h1{
+font-size:50px;
+margin-bottom:10px;
+}
+
+button{
+padding:14px 22px;
+margin:8px;
+border:none;
+border-radius:10px;
+font-weight:bold;
+font-size:16px;
+cursor:pointer;
+}
+
+.mainButton{
+background:#4fd1ff;
+color:#071018;
+font-size:20px;
+padding:18px 35px;
+}
+
+.card{
+display:inline-block;
+vertical-align:top;
+width:190px;
+margin:10px;
+padding:18px;
+background:#19202a;
+border:1px solid #35404d;
+border-radius:14px;
+}
+
+.selected{
+border:3px solid #4fd1ff;
+}
+
+.coins{
+color:gold;
+font-size:20px;
+margin:15px;
+}
+
+canvas{
+background:#222b35;
+border:2px solid white;
+max-width:95vw;
+cursor:crosshair;
+}
+
+.healthBar{
+width:300px;
+height:18px;
+background:#444;
+margin:10px auto;
+border-radius:20px;
+overflow:hidden;
+}
+
+#healthFill{
+height:100%;
+width:100%;
+background:#45dc78;
+}
+
+.hud{
+display:flex;
+justify-content:center;
+gap:15px;
+flex-wrap:wrap;
+margin:15px;
+}
+
+.hudBox{
+padding:10px 15px;
+background:#19202a;
+border-radius:10px;
+}
+
+</style>
+</head>
+
+
+<body>
+
+
+<!-- HOME -->
+
+<div id="home" class="page active">
+
+<h1>DUEL ARENA</h1>
+
+<p>
+Choose your weapon, collect healing potions and enter the arena.
+</p>
+
+<div class="coins">
+Coins:
+<span id="homeCoins">500</span>
+</div>
+
+<br>
+
+<button class="mainButton"
+onclick="showPage('weapons')">
+
+START
+
+</button>
+
+<br>
+
+<button onclick="showPage('weapons')">
+WEAPONS
+</button>
+
+<button onclick="showPage('potions')">
+HEALING SHOP
+</button>
+
+<button onclick="startGame()">
+PLAY
+</button>
+
+</div>
+
+
+
+<!-- WEAPONS -->
+
+<div id="weapons" class="page">
+
+<h1>CHOOSE YOUR WEAPON</h1>
+
+<div class="coins">
+Coins:
+<span id="weaponCoins">500</span>
+</div>
+
+<div id="gunList"></div>
+
+<br>
+
+<button onclick="showPage('home')">
+BACK
+</button>
+
+<button class="mainButton"
+onclick="showPage('potions')">
+
+NEXT
+
+</button>
+
+</div>
+
+
+
+<!-- POTIONS -->
+
+<div id="potions" class="page">
+
+<h1>HEALING SHOP</h1>
+
+<div class="coins">
+Coins:
+<span id="potionCoins">500</span>
+</div>
+
+
+<div class="card">
+
+<h2>Small Potion</h2>
+
+<div style="font-size:45px">
+🧪
+</div>
+
+<p>
+Restores 25 health
+</p>
+
+<p>
+50 coins
+</p>
+
+<button onclick="buyPotion('small')">
+BUY
+</button>
+
+<p>
+Owned:
+<span id="smallCount">0</span>
+</p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>Large Potion</h2>
+
+<div style="font-size:45px">
+🧪
+</div>
+
+<p>
+Restores 50 health
+</p>
+
+<p>
+100 coins
+</p>
+
+<button onclick="buyPotion('large')">
+BUY
+</button>
+
+<p>
+Owned:
+<span id="largeCount">0</span>
+</p>
+
+</div>
+
+
+<br>
+
+<button onclick="showPage('weapons')">
+BACK
+</button>
+
+<button class="mainButton"
+onclick="startGame()">
+
+ENTER ARENA
+
+</button>
+
+</div>
+
+
+
+<!-- GAME -->
+
+<div id="gamePage" class="page">
+
+<h1>DUEL</h1>
+
+<p>
+WASD = move |
+Mouse = aim |
+Click = shoot
+</p>
+
+
+<div class="hud">
+
+<div class="hudBox">
+❤️
+<span id="healthText">100</span>
+</div>
+
+<div class="hudBox">
+Enemy:
+<span id="enemyHealth">100</span>
+</div>
+
+<div class="hudBox">
+Weapon:
+<span id="weaponName"></span>
+</div>
+
+<div class="hudBox">
+🪙
+<span id="gameCoins"></span>
+</div>
+
+</div>
+
+
+<div class="healthBar">
+
+<div id="healthFill"></div>
+
+</div>
+
+
+<button onclick="usePotion('small')">
+USE SMALL POTION
+</button>
+
+<button onclick="usePotion('large')">
+USE LARGE POTION
+</button>
+
+<br><br>
+
+
+<canvas
+id="game"
+width="900"
+height="550">
+</canvas>
+
+
+<br>
+
+<button onclick="showPage('home')">
+LEAVE GAME
+</button>
+
+</div>
+
+
+
+<script>
+
+/* ==============================
+PLAYER DATA
+============================== */
+
+let coins = 500;
+
+let inventory = {
+
+small:0,
+
+large:0
+
+};
+
+let selectedGun = 0;
+
+
+
+/* ==============================
+WEAPONS
+============================== */
+
+const guns = [
+
+{
+name:"Starter Pistol",
+damage:20,
+speed:8,
+price:0,
+owned:true
+},
+
+{
+name:"Rapid SMG",
+damage:15,
+speed:12,
+price:100,
+owned:false
+},
+
+{
+name:"Heavy Revolver",
+damage:40,
+speed:8,
+price:150,
+owned:false
+},
+
+{
+name:"Combat Shotgun",
+damage:55,
+speed:7,
+price:200,
+owned:false
+},
+
+{
+name:"Battle Rifle",
+damage:30,
+speed:11,
+price:250,
+owned:false
+},
+
+{
+name:"Sniper Rifle",
+damage:80,
+speed:15,
+price:350,
+owned:false
+},
+
+{
+name:"Plasma Blaster",
+damage:60,
+speed:13,
+price:450,
+owned:false
+}
+
+];
+
+
+
+/* ==============================
+PAGES
+============================== */
+
+function showPage(name){
+
+document
+.querySelectorAll(".page")
+.forEach(page=>{
+
+page.classList.remove("active");
+
+});
+
+document
+.getElementById(name)
+.classList.add("active");
+
+}
+
+
+
+/* ==============================
+GUN SHOP
+============================== */
+
+function drawGunShop(){
+
+const list =
+document.getElementById("gunList");
+
+list.innerHTML="";
+
+
+guns.forEach(
+
+(gun,index)=>{
+
+const card =
+document.createElement("div");
+
+card.className =
+"card"
++
+(index===selectedGun
+?" selected"
+:"");
+
+
+card.innerHTML=`
+
+<div style="font-size:45px">
+🔫
+</div>
+
+<h2>
+${gun.name}
+</h2>
+
+<p>
+Damage:
+${gun.damage}
+</p>
+
+<p>
+Speed:
+${gun.speed}
+</p>
+
+<p style="color:gold">
+
+${
+gun.owned
+?
+"OWNED"
+:
+gun.price+" coins"
+}
+
+</p>
+
+<button onclick="gunButton(${index})">
+
+${
+index===selectedGun
+?
+"EQUIPPED"
+:
+gun.owned
+?
+"EQUIP"
+:
+"BUY"
+}
+
+</button>
+
+`;
+
+list.appendChild(card);
+
+}
+
+);
+
+}
+
+
+
+function gunButton(index){
+
+const gun =
+guns[index];
+
+
+if(gun.owned){
+
+selectedGun=index;
+
+}
+
+else{
+
+if(coins>=gun.price){
+
+coins-=gun.price;
+
+gun.owned=true;
+
+selectedGun=index;
+
+}
+
+else{
+
+alert("Not enough coins!");
+
+}
+
+}
+
+updateUI();
+
+drawGunShop();
+
+}
+
+
+
+/* ==============================
+POTIONS
+============================== */
+
+function buyPotion(type){
+
+if(type==="small"){
+
+if(coins>=50){
+
+coins-=50;
+
+inventory.small++;
+
+}
+
+else{
+
+alert("Not enough coins!");
+
+}
+
+}
+
+
+if(type==="large"){
+
+if(coins>=100){
+
+coins-=100;
+
+inventory.large++;
+
+}
+
+else{
+
+alert("Not enough coins!");
+
+}
+
+}
+
+updateUI();
+
+}
+
+
+
+function usePotion(type){
+
+if(gameOver)
+return;
+
+
+if(type==="small"){
+
+if(
+inventory.small>0
+&&
+player.health<100
+){
+
+inventory.small--;
+
+player.health=
+Math.min(
+100,
+player.health+25
+);
+
+}
+
+}
+
+
+if(type==="large"){
+
+if(
+inventory.large>0
+&&
+player.health<100
+){
+
+inventory.large--;
+
+player.health=
+Math.min(
+100,
+player.health+50
+);
+
+}
+
+}
+
+updateUI();
+
+}
+
+
+
+/* ==============================
+CANVAS GAME
+============================== */
+
+const canvas =
+document.getElementById("game");
+
+const ctx =
+canvas.getContext("2d");
+
+
+let player;
+
+let enemy;
+
+let bullets=[];
+
+let enemyBullets=[];
+
+let keys={};
+
+let mouse={
+
+x:700,
+
+y:250
+
+};
+
+let gameOver=true;
+
+let enemyTimer=0;
+
+
+
+function resetCharacters(){
+
+player={
+
+x:150,
+
+y:275,
+
+health:100,
+
+speed:4
+
+};
+
+
+enemy={
+
+x:750,
+
+y:275,
+
+health:100,
+
+speed:1.3
+
+};
+
+
+bullets=[];
+
+enemyBullets=[];
+
+enemyTimer=0;
+
+gameOver=false;
+
+}
+
+
+
+/* ==============================
+START GAME
+============================== */
+
+function startGame(){
+
+resetCharacters();
+
+showPage("gamePage");
+
+}
+
+
+
+/* ==============================
+KEYBOARD
+============================== */
+
+document.addEventListener(
+
+"keydown",
+
+event=>{
+
+keys[
+event.key.toLowerCase()
+]=true;
+
+}
+
+);
+
+
+document.addEventListener(
+
+"keyup",
+
+event=>{
+
+keys[
+event.key.toLowerCase()
+]=false;
+
+}
+
+);
+
+
+
+/* ==============================
+MOUSE AIM
+============================== */
+
+canvas.addEventListener(
+
+"mousemove",
+
+event=>{
+
+const rect =
+canvas.getBoundingClientRect();
+
+
+mouse.x=
+
+(event.clientX-rect.left)
+*
+canvas.width
+/
+rect.width;
+
+
+mouse.y=
+
+(event.clientY-rect.top)
+*
+canvas.height
+/
+rect.height;
+
+}
+
+);
+
+
+
+/* ==============================
+PLAYER SHOOTING
+============================== */
+
+canvas.addEventListener(
+
+"click",
+
+()=>{
+
+if(gameOver)
+return;
+
+
+const gun =
+guns[selectedGun];
+
+
+const angle =
+
+Math.atan2(
+
+mouse.y-player.y,
+
+mouse.x-player.x
+
+);
+
+
+bullets.push({
+
+x:player.x,
+
+y:player.y,
+
+dx:
+Math.cos(angle)
+*
+gun.speed,
+
+dy:
+Math.sin(angle)
+*
+gun.speed,
+
+damage:
+gun.damage
+
+});
+
+}
+
+);
+
+
+
+/* ==============================
+PLAYER MOVEMENT
+============================== */
+
+function movePlayer(){
+
+if(keys["w"])
+player.y-=player.speed;
+
+if(keys["s"])
+player.y+=player.speed;
+
+if(keys["a"])
+player.x-=player.speed;
+
+if(keys["d"])
+player.x+=player.speed;
+
+
+player.x=
+
+Math.max(
+
+25,
+
+Math.min(
+
+canvas.width-25,
+
+player.x
+
+)
+
+);
+
+
+player.y=
+
+Math.max(
+
+25,
+
+Math.min(
+
+canvas.height-25,
+
+player.y
+
+)
+
+);
+
+}
+
+
+
+/* ==============================
+ENEMY AI
+============================== */
+
+function updateEnemy(){
+
+const dx =
+player.x-enemy.x;
+
+const dy =
+player.y-enemy.y;
+
+
+const distance =
+Math.sqrt(
+
+dx*dx
++
+dy*dy
+
+);
+
+
+if(distance>230){
+
+enemy.x+=
+dx/distance
+*
+enemy.speed;
+
+
+enemy.y+=
+dy/distance
+*
+enemy.speed;
+
+}
+
+
+enemyTimer++;
+
+
+if(enemyTimer>80){
+
+enemyTimer=0;
+
+
+const angle=
+
+Math.atan2(
+
+player.y-enemy.y,
+
+player.x-enemy.x
+
+);
+
+
+enemyBullets.push({
+
+x:enemy.x,
+
+y:enemy.y,
+
+dx:
+Math.cos(angle)*5,
+
+dy:
+Math.sin(angle)*5
+
+});
+
+}
+
+}
+
+
+
+/* ==============================
+PLAYER BULLETS
+============================== */
+
+function updateBullets(){
+
+bullets.forEach(
+
+bullet=>{
+
+bullet.x+=bullet.dx;
+
+bullet.y+=bullet.dy;
+
+
+const dx=
+bullet.x-enemy.x;
+
+const dy=
+bullet.y-enemy.y;
+
+
+if(
+
+Math.sqrt(
+dx*dx+dy*dy
+)
+<
+25
+
+){
+
+enemy.health-=bullet.damage;
+
+bullet.dead=true;
+
+}
+
+}
+
+);
+
+
+bullets=
+
+bullets.filter(
+
+bullet=>
+
+!bullet.dead
+&&
+bullet.x>0
+&&
+bullet.x<canvas.width
+&&
+bullet.y>0
+&&
+bullet.y<canvas.height
+
+);
+
+}
+
+
+
+/* ==============================
+ENEMY BULLETS
+============================== */
+
+function updateEnemyBullets(){
+
+enemyBullets.forEach(
+
+bullet=>{
+
+bullet.x+=bullet.dx;
+
+bullet.y+=bullet.dy;
+
+
+const dx=
+bullet.x-player.x;
+
+const dy=
+bullet.y-player.y;
+
+
+if(
+
+Math.sqrt(
+dx*dx+dy*dy
+)
+<
+25
+
+){
+
+player.health-=10;
+
+bullet.dead=true;
+
+}
+
+}
+
+);
+
+
+enemyBullets=
+
+enemyBullets.filter(
+
+bullet=>
+
+!bullet.dead
+&&
+bullet.x>0
+&&
+bullet.x<canvas.width
+&&
+bullet.y>0
+&&
+bullet.y<canvas.height
+
+);
+
+}
+
+
+
+/* ==============================
+DRAW ARENA
+============================== */
+
+function drawArena(){
+
+ctx.fillStyle="#222b35";
+
+ctx.fillRect(
+
+0,
+
+0,
+
+canvas.width,
+
+canvas.height
+
+);
+
+
+/* WALLS */
+
+ctx.fillStyle="#3b4653";
+
+
+ctx.fillRect(
+
+350,
+
+150,
+
+200,
+
+40
+
+);
+
+
+ctx.fillRect(
+
+350,
+
+360,
+
+200,
+
+40
+
+);
+
+}
+
+
+
+/* ==============================
+DRAW PLAYER
+============================== */
+
+function drawPlayer(){
+
+ctx.fillStyle="#4fd1ff";
+
+
+ctx.beginPath();
+
+ctx.arc(
+
+player.x,
+
+player.y,
+
+22,
+
+0,
+
+Math.PI*2
+
+);
+
+ctx.fill();
+
+
+ctx.fillStyle="#111";
+
+
+ctx.fillRect(
+
+player.x+15,
+
+player.y-4,
+
+30,
+
+8
+
+);
+
+}
+
+
+
+/* ==============================
+DRAW ENEMY
+============================== */
+
+function drawEnemy(){
+
+ctx.fillStyle="#ff5555";
+
+
+ctx.beginPath();
+
+ctx.arc(
+
+enemy.x,
+
+enemy.y,
+
+22,
+
+0,
+
+Math.PI*2
+
+);
+
+ctx.fill();
+
+
+ctx.fillStyle="#111";
+
+
+ctx.fillRect(
+
+enemy.x-45,
+
+enemy.y-4,
+
+30,
+
+8
+
+);
+
+}
+
+
+
+/* ==============================
+DRAW BULLETS
+============================== */
+
+function drawBullets(){
+
+ctx.fillStyle="yellow";
+
+
+bullets.forEach(
+
+bullet=>{
+
+ctx.beginPath();
+
+ctx.arc(
+
+bullet.x,
+
+bullet.y,
+
+5,
+
+0,
+
+Math.PI*2
+
+);
+
+ctx.fill();
+
+}
+
+);
+
+
+ctx.fillStyle="orange";
+
+
+enemyBullets.forEach(
+
+bullet=>{
+
+ctx.beginPath();
+
+ctx.arc(
+
+bullet.x,
+
+bullet.y,
+
+5,
+
+0,
+
+Math.PI*2
+
+);
+
+ctx.fill();
+
+}
+
+);
+
+}
+
+
+
+/* ==============================
+CROSSHAIR
+============================== */
+
+function drawCrosshair(){
+
+ctx.strokeStyle="white";
+
+ctx.lineWidth=2;
+
+
+ctx.beginPath();
+
+
+ctx.moveTo(
+
+mouse.x-10,
+
+mouse.y
+
+);
+
+
+ctx.lineTo(
+
+mouse.x+10,
+
+mouse.y
+
+);
+
+
+ctx.moveTo(
+
+mouse.x,
+
+mouse.y-10
+
+);
+
+
+ctx.lineTo(
+
+mouse.x,
+
+mouse.y+10
+
+);
+
+
+ctx.stroke();
+
+}
+
+
+
+/* ==============================
+WIN / LOSE
+============================== */
+
+function checkGame(){
+
+if(
+
+enemy.health<=0
+&&
+!gameOver
+
+){
+
+gameOver=true;
+
+coins+=100;
+
+
+setTimeout(
+
+()=>{
+
+alert(
+"YOU WIN! +100 COINS"
+);
+
+showPage("home");
+
+},
+
+300
+
+);
+
+}
+
+
+if(
+
+player.health<=0
+&&
+!gameOver
+
+){
+
+gameOver=true;
+
+
+setTimeout(
+
+()=>{
+
+alert(
+"YOU LOST!"
+);
+
+showPage("home");
+
+},
+
+300
+
+);
+
+}
+
+}
+
+
+
+/* ==============================
+UI
+============================== */
+
+function updateUI(){
+
+document
+.getElementById("homeCoins")
+.textContent=
+coins;
+
+
+document
+.getElementById("weaponCoins")
+.textContent=
+coins;
+
+
+document
+.getElementById("potionCoins")
+.textContent=
+coins;
+
+
+document
+.getElementById("gameCoins")
+.textContent=
+coins;
+
+
+document
+.getElementById("smallCount")
+.textContent=
+inventory.small;
+
+
+document
+.getElementById("largeCount")
+.textContent=
+inventory.large;
+
+
+if(player){
+
+document
+.getElementById("healthText")
+.textContent=
+Math.max(
+0,
+player.health
+);
+
+
+document
+.getElementById("enemyHealth")
+.textContent=
+Math.max(
+0,
+enemy.health
+);
+
+
+document
+.getElementById("healthFill")
+.style.width=
+
+Math.max(
+0,
+player.health
+)
++
+"%";
+
+}
+
+
+document
+.getElementById("weaponName")
+.textContent=
+
+guns[selectedGun].name;
+
+}
+
+
+
+/* ==============================
+GAME LOOP
+============================== */
+
+function gameLoop(){
+
+if(
+
+document
+.getElementById("gamePage")
+.classList
+.contains("active")
+
+){
+
+drawArena();
+
+
+if(!gameOver){
+
+movePlayer();
+
+updateEnemy();
+
+updateBullets();
+
+updateEnemyBullets();
+
+}
+
+
+drawPlayer();
+
+drawEnemy();
+
+drawBullets();
+
+drawCrosshair();
+
+checkGame();
+
+updateUI();
+
+}
+
+
+requestAnimationFrame(
+gameLoop
+);
+
+}
+
+
+
+/* START */
+
+drawGunShop();
+
+updateUI();
+
+gameLoop();
+
+</script>
+
+</body>
+</html>
