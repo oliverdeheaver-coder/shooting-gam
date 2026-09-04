@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Duel Arena - Game</title>
+
+  <style>
+    body {
+      margin: 0;
+      background: #101216;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 15px 0 5px;
+    }
+
+    p {
+      color: #aaa;
+    }
+
+    canvas {
+      background: #252b33;
+      border: 2px solid white;
+      max-width: 95vw;
+      cursor: crosshair;
+    }
+
+    .hud {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin: 15px;
+      flex-wrap: wrap;
+    }
+
+    .box {
+      background: #1b2028;
+      border: 1px solid #39414d;
+      border-radius: 10px;
+      padding: 10px 18px;
+    }
+
+    button {
+      padding: 12px 18px;
+      margin: 8px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .heal {
+      background: #4fdc7c;
+    }
+
+    .home {
+      background: #eee;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>DUEL ARENA</h1>
+
+<p>
+WASD = Move |
+Mouse = Aim |
+Click = Shoot
+</p>
+
+<div class="hud">
+
+  <div class="box">
+    Health:
+    <b id="health">100</b>
+  </div>
+
+  <div class="box">
+    Enemy:
+    <b id="enemyHealth">100</b>
+  </div>
+
+  <div class="box">
+    Weapon:
+    <b id="weapon">Starter Pistol</b>
+  </div>
+
+  <div class="box">
+    Coins:
+    <b id="coins">0</b>
+  </div>
+
+</div>
+
+<button class="heal" onclick="healPlayer()">
+  USE HEAL POTION
+</button>
+
+<br>
+
+<canvas id="game" width="900" height="550"></canvas>
+
+<br>
+
+<a href="index.html">
+  <button class="home">
+    BACK HOME
+  </button>
+</a>
+
+<script>
+
+const canvas =
+document.getElementById("game");
+
+const ctx =
+canvas.getContext("2d");
+
+let keys = {};
+
+let mouse = {
+  x: 700,
+  y: 250
+};
+
+let bullets = [];
+
+let enemyBullets = [];
+
+let gameOver = false;
+
+
+/* PLAYER */
+
+let player = {
+  x: 150,
+  y: 275,
+  health: 100,
+  speed: 4
+};
+
+
+/* ENEMY */
+
+let enemy = {
+  x: 750,
+  y: 275,
+  health: 100,
+  speed: 1.2
+};
+
+
+/* LOAD SAVED WEAPON */
+
+let weapon =
+localStorage.getItem("weapon")
+||
+"Starter Pistol";
+
+
+let damage =
+Number(
+  localStorage.getItem("damage")
+)
+||
+20;
+
+
+document
+.getElementById("weapon")
+.textContent =
+weapon;
+
+
+/* LOAD COINS */
+
+let coins =
+Number(
+  localStorage.getItem("coins")
+)
+||
+0;
+
+
+/* LOAD POTIONS */
+
+let potions =
+Number(
+  localStorage.getItem("potions")
+)
+||
+3;
+
+
+/* CONTROLS */
+
+document.addEventListener(
+"keydown",
+function(e) {
+
+  keys[
+    e.key.toLowerCase()
+  ] = true;
+
+}
+);
+
+
+document.addEventListener(
+"keyup",
+function(e) {
+
+  keys[
+    e.key.toLowerCase()
+  ] = false;
+
+}
+);
+
+
+/* AIM */
+
+canvas.addEventListener(
+"mousemove",
+function(e) {
+
+  const rect =
+  canvas.getBoundingClientRect();
+
+  mouse.x =
+  (e.clientX - rect.left)
+  *
+  canvas.width
+  /
+  rect.width;
+
+  mouse.y =
+  (e.clientY - rect.top)
+  *
+  canvas.height
+  /
+  rect.height;
+
+}
+);
+
+
+/* SHOOT */
+
+canvas.addEventListener(
+"click",
+function() {
+
+  if(gameOver) return;
+
+  const angle =
+  Math.atan2(
+    mouse.y - player.y,
+    mouse.x - player.x
+  );
+
+  bullets.push({
+
+    x: player.x,
+
+    y: player.y,
+
+    dx:
+    Math.cos(angle) * 9,
+
+    dy:
+    Math.sin(angle) * 9
+
+  });
+
+}
+);
+
+
+/* MOVE PLAYER */
+
+function movePlayer() {
+
+  if(keys["w"])
+    player.y -= player.speed;
+
+  if(keys["s"])
+    player.y += player.speed;
+
+  if(keys["a"])
+    player.x -= player.speed;
+
+  if(keys["d"])
+    player.x += player.speed;
+
+
+  player.x =
+  Math.max(
+    25,
+    Math.min(
+      canvas.width - 25,
+      player.x
+    )
+  );
+
+  player.y =
+  Math.max(
+    25,
+    Math.min(
+      canvas.height - 25,
+      player.y
+    )
+  );
+
+}
+
+
+/* ENEMY MOVEMENT */
+
+function moveEnemy() {
+
+  const dx =
+  player.x - enemy.x;
+
+  const dy =
+  player.y - enemy.y;
+
+  const distance =
+  Math.sqrt(
+    dx * dx + dy * dy
+  );
+
+  if(distance > 200) {
+
+    enemy.x +=
+    (dx / distance)
+    *
+    enemy.speed;
+
+    enemy.y +=
+    (dy / distance)
+    *
+    enemy.speed;
+
+  }
+
+}
+
+
+/* ENEMY SHOOTING */
+
+let enemyShootTimer = 0;
+
+function enemyShoot() {
+
+  enemyShootTimer++;
+
+  if(enemyShootTimer < 90)
+    return;
+
+  enemyShootTimer = 0;
+
+  const angle =
+  Math.atan2(
+    player.y - enemy.y,
+    player.x - enemy.x
+  );
+
+  enemyBullets.push({
+
+    x: enemy.x,
+
+    y: enemy.y,
+
+    dx:
+    Math.cos(angle) * 5,
+
+    dy:
+    Math.sin(angle) * 5
+
+  });
+
+}
+
+
+/* UPDATE PLAYER BULLETS */
+
+function updateBullets() {
+
+  bullets.forEach(
+  function(bullet) {
+
+    bullet.x += bullet.dx;
+    bullet.y += bullet.dy;
+
+    const dx =
+    bullet.x - enemy.x;
+
+    const dy =
+    bullet.y - enemy.y;
+
+    const distance =
+    Math.sqrt(
+      dx * dx + dy * dy
+    );
+
+    if(distance < 25) {
+
+      enemy.health -= damage;
+
+      bullet.dead = true;
+
+    }
+
+  });
+
+  bullets =
+  bullets.filter(
+  bullet =>
+  !bullet.dead
+  &&
+  bullet.x > 0
+  &&
+  bullet.x < canvas.width
+  &&
+  bullet.y > 0
+  &&
+  bullet.y < canvas.height
+  );
+
+}
+
+
+/* UPDATE ENEMY BULLETS */
+
+function updateEnemyBullets() {
+
+  enemyBullets.forEach(
+  function(bullet) {
+
+    bullet.x += bullet.dx;
+    bullet.y += bullet.dy;
+
+    const dx =
+    bullet.x - player.x;
+
+    const dy =
+    bullet.y - player.y;
+
+    const distance =
+    Math.sqrt(
+      dx * dx + dy * dy
+    );
+
+    if(distance < 25) {
+
+      player.health -= 10;
+
+      bullet.dead = true;
+
+    }
+
+  });
+
+  enemyBullets =
+  enemyBullets.filter(
+  bullet =>
+  !bullet.dead
+  &&
+  bullet.x > 0
+  &&
+  bullet.x < canvas.width
+  &&
+  bullet.y > 0
+  &&
+  bullet.y < canvas.height
+  );
+
+}
+
+
+/* HEAL POTION */
+
+function healPlayer() {
+
+  if(
+    potions > 0
+    &&
+    player.health < 100
+    &&
+    !gameOver
+  ) {
+
+    player.health += 30;
+
+    if(player.health > 100)
+      player.health = 100;
+
+    potions--;
+
+  }
+
+}
+
+
+/* DRAW PLAYER */
+
+function drawPlayer() {
+
+  ctx.fillStyle = "#55ccff";
+
+  ctx.beginPath();
+
+  ctx.arc(
+    player.x,
+    player.y,
+    22,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+
+  ctx.fillStyle = "#222";
+
+  ctx.fillRect(
+    player.x + 15,
+    player.y - 4,
+    30,
+    8
+  );
+
+}
+
+
+/* DRAW ENEMY */
+
+function drawEnemy() {
+
+  ctx.fillStyle = "#ff5555";
+
+  ctx.beginPath();
+
+  ctx.arc(
+    enemy.x,
+    enemy.y,
+    22,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fill();
+
+
+  ctx.fillStyle = "#222";
+
+  ctx.fillRect(
+    enemy.x - 45,
+    enemy.y - 4,
+    30,
+    8
+  );
+
+}
+
+
+/* DRAW BULLETS */
+
+function drawBullets() {
+
+  ctx.fillStyle = "yellow";
+
+  bullets.forEach(
+  function(bullet) {
+
+    ctx.beginPath();
+
+    ctx.arc(
+      bullet.x,
+      bullet.y,
+      5,
+      0,
+      Math.PI * 2
+    );
+
+    ctx.fill();
+
+  });
+
+
+  ctx.fillStyle = "orange";
+
+  enemyBullets.forEach(
+  function(bullet) {
+
+    ctx.beginPath();
+
+    ctx.arc(
+      bullet.x,
+      bullet.y,
+      5,
+      0,
+      Math.PI * 2
+    );
+
+    ctx.fill();
+
+  });
+
+}
+
+
+/* DRAW CROSSHAIR */
+
+function drawCrosshair() {
+
+  ctx.strokeStyle = "white";
+
+  ctx.beginPath();
+
+  ctx.moveTo(
+    mouse.x - 10,
+    mouse.y
+  );
+
+  ctx.lineTo(
+    mouse.x + 10,
+    mouse.y
+  );
+
+  ctx.moveTo(
+    mouse.x,
+    mouse.y - 10
+  );
+
+  ctx.lineTo(
+    mouse.x,
+    mouse.y + 10
+  );
+
+  ctx.stroke();
+
+}
+
+
+/* UI */
+
+function updateUI() {
+
+  document
+  .getElementById("health")
+  .textContent =
+  Math.max(
+    0,
+    player.health
+  );
+
+
+  document
+  .getElementById("enemyHealth")
+  .textContent =
+  Math.max(
+    0,
+    enemy.health
+  );
+
+
+  document
+  .getElementById("coins")
+  .textContent =
+  coins;
+
+}
+
+
+/* WIN */
+
+function playerWins() {
+
+  gameOver = true;
+
+  coins += 100;
+
+  localStorage.setItem(
+    "coins",
+    coins
+  );
+
+}
+
+
+/* GAME LOOP */
+
+function gameLoop() {
+
+  ctx.clearRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+
+  if(!gameOver) {
+
+    movePlayer();
+
+    moveEnemy();
+
+    enemyShoot();
+
+    updateBullets();
+
+    updateEnemyBullets();
+
+  }
+
+
+  drawPlayer();
+
+  drawEnemy();
+
+  drawBullets();
+
+  drawCrosshair();
+
+  updateUI();
+
+
+  if(
+    enemy.health <= 0
+    &&
+    !gameOver
+  ) {
+
+    playerWins();
+
+  }
+
+
+  if(enemy.health <= 0) {
+
+    ctx.fillStyle = "white";
+
+    ctx.font = "60px Arial";
+
+    ctx.fillText(
+      "YOU WIN!",
+      300,
+      275
+    );
+
+  }
+
+
+  if(player.health <= 0) {
+
+    gameOver = true;
+
+    ctx.fillStyle = "white";
+
+    ctx.font = "60px Arial";
+
+    ctx.fillText(
+      "YOU LOST",
+      280,
+      275
+    );
+
+  }
+
+
+  requestAnimationFrame(
+    gameLoop
+  );
+
+}
+
+gameLoop();
+
+</script>
+
+</body>
+</html>
